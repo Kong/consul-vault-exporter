@@ -31,7 +31,7 @@ Takes the environment variable: CONSUL_ADDRESS which is set to consul:8500 by de
 
 ```
 docker pull maguec/consul-vault-exporter:latest
-docker run -i -t -p 8080:8080 maguec/consul-vault-exporter
+docker run -i -t -p 9402:9402 maguec/consul-vault-exporter
 ```
 
 ## Testing
@@ -39,7 +39,7 @@ docker run -i -t -p 8080:8080 maguec/consul-vault-exporter
 run either the docker container or the raw application binary
 
 ```
-curl http://localhost:8080/health
+curl http://localhost:9402/health
 ```
 
 ## Outputs

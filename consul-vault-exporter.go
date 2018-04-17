@@ -20,5 +20,5 @@ func main() {
 	router.GET("/metrics", metrics.Metrics)
 
 	// RUN rabit run
-	router.Run() // listen and serve on 0.0.0.0:8080
+	router.Run(":9402") // listen and serve on 0.0.0.0:9402
 }

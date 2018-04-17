@@ -64,6 +64,7 @@ func Metrics(c *gin.Context) {
 
 func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 	var metricString bytes.Buffer
+	var nodeCount uint64
 
 	nodes, err := DiscoverNodes(c, url)
 	if err != nil {
@@ -88,10 +89,13 @@ func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 		if jsonErr != nil {
 			return metricString, jsonErr
 		}
-		metricString.WriteString(fmt.Sprintf( "# HELP is vault initialized?\n# TYPE vault_initialized gauge\nvault_initialized{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Initialized) ))
-		metricString.WriteString(fmt.Sprintf( "# HELP is vault sealed?\n# TYPE vault_sealed gauge\nvault_sealed{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Sealed) ))
-		metricString.WriteString(fmt.Sprintf( "# HELP is vault standby?\n# TYPE vault_standby gauge\nvault_standby{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Standby) ))
+		metricString.WriteString(fmt.Sprintf("# HELP is vault initialized?\n# TYPE vault_initialized gauge\nvault_initialized{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Initialized)))
+		metricString.WriteString(fmt.Sprintf("# HELP is vault sealed?\n# TYPE vault_sealed gauge\nvault_sealed{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Sealed)))
+		metricString.WriteString(fmt.Sprintf("# HELP is vault standby?\n# TYPE vault_standby gauge\nvault_standby{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Standby)))
+		nodeCount += 1
 	}
+
+	metricString.WriteString(fmt.Sprintf("# HELP discovered node count\n# TYPE vault_node_count gauge\nvault_node_count %d\n", nodeCount))
 
 	return metricString, nil
 }
