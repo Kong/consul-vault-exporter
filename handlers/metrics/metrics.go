@@ -2,17 +2,30 @@ package metrics
 
 import (
 	"bytes"
-	//	"encoding/json"
-	"errors"
+	"encoding/json"
+	//"errors"
+	"crypto/tls"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
-	"regexp"
+	//"time"
 	"github.com/hashicorp/consul/api"
+	"regexp"
 )
+
+type VauthHealth struct {
+	Initialized                bool   `json:"initialized"`
+	Sealed                     bool   `json:"sealed"`
+	Standby                    bool   `json:"standby"`
+	ReplicationPerformanceMode string `json:"replication_performance_mode"`
+	ReplicationDrMode          string `json:"replication_dr_mode"`
+	ServerTimeUtc              int    `json:"server_time_utc"`
+	Version                    string `json:"version"`
+	ClusterName                string `json:"cluster_name"`
+	ClusterID                  string `json:"cluster_id"`
+}
 
 func Redirect(c *gin.Context) {
 	c.Redirect(http.StatusMovedPermanently, "/metrics")
@@ -20,6 +33,13 @@ func Redirect(c *gin.Context) {
 
 func handleError(c *gin.Context, errorString error) {
 	c.JSON(500, gin.H{"message": errorString, "status": "error"})
+}
+
+func bool2float(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func Metrics(c *gin.Context) {
@@ -50,30 +70,29 @@ func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 		return metricString, err
 	}
 	for _, n := range nodes {
-		statusClient := http.Client{
-						Timeout: time.Second * 3,
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/", n), nil)
+		client := &http.Client{Transport: tr}
+
+		res, err := client.Get(fmt.Sprintf("https://%s/v1/sys/health", n))
 		if err != nil {
-						return metricString, err
-		}
-		res, getErr := statusClient.Do(req)
-		if getErr != nil {
-						handleError(c, getErr)
-						return metricString, getErr
-		}
-		if res.StatusCode != 200 {
-						c.JSON(500, gin.H{"message": "Call to the api endpoint failed", "http_status": res.StatusCode})
-						return metricString, errors.New("HTTP Response: was not 200")
+			return metricString, err
 		}
 		body, readErr := ioutil.ReadAll(res.Body)
 		if readErr != nil {
-						return metricString, readErr
+			return metricString, readErr
 		}
-		fmt.Println(body)
+		vaultHealth := VauthHealth{}
+		jsonErr := json.Unmarshal(body, &vaultHealth)
+		if jsonErr != nil {
+			return metricString, jsonErr
+		}
+		metricString.WriteString(fmt.Sprintf( "# HELP is vault initialized?\n# TYPE vault_initialized gauge\nvault_initialized{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Initialized) ))
+		metricString.WriteString(fmt.Sprintf( "# HELP is vault sealed?\n# TYPE vault_sealed gauge\nvault_sealed{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Sealed) ))
+		metricString.WriteString(fmt.Sprintf( "# HELP is vault standby?\n# TYPE vault_standby gauge\nvault_standby{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Standby) ))
 	}
 
-	metricString.WriteString(fmt.Sprintf("# HELP Can we fetch the catalog from consul\n# TYPE consul_catalog_available gauge\nconsul_catalog_available %d\n", 1))
 	return metricString, nil
 }
 
@@ -88,7 +107,6 @@ func DiscoverNodes(c *gin.Context, url string) ([]string, error) {
 
 	catalog := client.Catalog()
 	srvs := api.QueryOptions{}
-	//res, _, _ := catalog.Services(&srvs)
 	res, _, err := catalog.Service("vault", "", &srvs)
 	if err != nil {
 		return nodeList, err
@@ -96,9 +114,9 @@ func DiscoverNodes(c *gin.Context, url string) ([]string, error) {
 
 	r, _ := regexp.Compile(`^vault-.*$`)
 	for _, s := range res {
-			if r.MatchString(s.Node) == true {
-				nodeList = append(nodeList, fmt.Sprintf("%s:%d", s.Node, s.ServicePort))
-			}
+		if r.MatchString(s.Node) == true {
+			nodeList = append(nodeList, fmt.Sprintf("%s:%d", s.Node, s.ServicePort))
+		}
 	}
 	return nodeList, nil
 }

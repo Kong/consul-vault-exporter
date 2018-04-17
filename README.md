@@ -19,6 +19,8 @@ Uses Consul to find all vault servers and exports data
 
 ## Running
 
+Takes the environment variable: CONSUL_ADDRESS which is set to consul:8500 by default
+
 ### Mac/Linux
 
 ```
@@ -40,5 +42,15 @@ run either the docker container or the raw application binary
 curl http://localhost:8080/health
 ```
 
----
-Copyright © 2018, Chris Mague
+## Outputs
+```
+# HELP is vault initialized?
+# TYPE vault_initialized gauge
+vault_initialized{instance="vault-8665717464.consul:8200",cluster="kongvault",version="0.9.5"} 1
+# HELP is vault sealed?
+# TYPE vault_sealed gauge
+vault_sealed{instance="vault-8665717464.consul:8200",cluster="kongvault",version="0.9.5"} 0
+# HELP is vault standby?
+# TYPE vault_standby gauge
+vault_standby{instance="vault-8665717464.consul:8200",cluster="kongvault",version="0.9.5"} 1
+```
