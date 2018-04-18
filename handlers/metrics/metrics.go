@@ -15,6 +15,12 @@ import (
 	"regexp"
 )
 
+type VaultNode struct {
+	Node    string
+	Address string
+	Port    int
+}
+
 type VauthHealth struct {
 	Initialized                bool   `json:"initialized"`
 	Sealed                     bool   `json:"sealed"`
@@ -76,7 +82,7 @@ func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 		}
 		client := &http.Client{Transport: tr}
 
-		res, err := client.Get(fmt.Sprintf("https://%s/v1/sys/health", n))
+		res, err := client.Get(fmt.Sprintf("https://%s:%d/v1/sys/health", n.Address, n.Port))
 		if err != nil {
 			return metricString, err
 		}
@@ -89,9 +95,9 @@ func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 		if jsonErr != nil {
 			return metricString, jsonErr
 		}
-		metricString.WriteString(fmt.Sprintf("# HELP is vault initialized?\n# TYPE vault_initialized gauge\nvault_initialized{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Initialized)))
-		metricString.WriteString(fmt.Sprintf("# HELP is vault sealed?\n# TYPE vault_sealed gauge\nvault_sealed{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Sealed)))
-		metricString.WriteString(fmt.Sprintf("# HELP is vault standby?\n# TYPE vault_standby gauge\nvault_standby{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Standby)))
+		metricString.WriteString(fmt.Sprintf("# HELP is vault initialized?\n# TYPE vault_initialized gauge\nvault_initialized{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n.Node, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Initialized)))
+		metricString.WriteString(fmt.Sprintf("# HELP is vault sealed?\n# TYPE vault_sealed gauge\nvault_sealed{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n.Node, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Sealed)))
+		metricString.WriteString(fmt.Sprintf("# HELP is vault standby?\n# TYPE vault_standby gauge\nvault_standby{instance=\"%s\",cluster=\"%s\",version=\"%s\"} %.f\n", n.Node, vaultHealth.ClusterName, vaultHealth.Version, bool2float(vaultHealth.Standby)))
 		nodeCount += 1
 	}
 
@@ -100,8 +106,8 @@ func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 	return metricString, nil
 }
 
-func DiscoverNodes(c *gin.Context, url string) ([]string, error) {
-	var nodeList []string
+func DiscoverNodes(c *gin.Context, url string) ([]VaultNode, error) {
+	var nodeList []VaultNode
 
 	consulConf := api.Config{Address: url}
 	client, err := api.NewClient(&consulConf)
@@ -119,7 +125,7 @@ func DiscoverNodes(c *gin.Context, url string) ([]string, error) {
 	r, _ := regexp.Compile(`^vault-.*$`)
 	for _, s := range res {
 		if r.MatchString(s.Node) == true {
-			nodeList = append(nodeList, fmt.Sprintf("%s:%d", s.ServiceAddress, s.ServicePort))
+			nodeList = append(nodeList, VaultNode{Node: s.Node, Address: s.Address, Port: s.ServicePort})
 		}
 	}
 	return nodeList, nil
