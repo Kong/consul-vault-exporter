@@ -119,7 +119,7 @@ func DiscoverNodes(c *gin.Context, url string) ([]string, error) {
 	r, _ := regexp.Compile(`^vault-.*$`)
 	for _, s := range res {
 		if r.MatchString(s.Node) == true {
-			nodeList = append(nodeList, fmt.Sprintf("%s:%d", s.Node, s.ServicePort))
+			nodeList = append(nodeList, fmt.Sprintf("%s:%d", s.ServiceAddress, s.ServicePort))
 		}
 	}
 	return nodeList, nil
