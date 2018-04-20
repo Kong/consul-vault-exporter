@@ -2,17 +2,16 @@ package metrics
 
 import (
 	"bytes"
-	"encoding/json"
-	//"errors"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/hashicorp/consul/api"
 	"io/ioutil"
 	"net/http"
 	"os"
-	//"time"
-	"github.com/hashicorp/consul/api"
 	"regexp"
+	"time"
 )
 
 type VaultNode struct {
@@ -80,13 +79,19 @@ func ScrapeMetrics(c *gin.Context, url string) (bytes.Buffer, error) {
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
-		client := &http.Client{Transport: tr}
+		client := &http.Client{
+			Transport: tr,
+			Timeout:   time.Second * 2,
+		}
 
 		res, err := client.Get(fmt.Sprintf("https://%s:%d/v1/sys/health", n.Address, n.Port))
 		if err != nil {
 			return metricString, err
 		}
 		body, readErr := ioutil.ReadAll(res.Body)
+		// Close both the body and the IdleConnections or you will leak file handles
+		res.Body.Close()
+		client.Transport.(*http.Transport).CloseIdleConnections()
 		if readErr != nil {
 			return metricString, readErr
 		}
