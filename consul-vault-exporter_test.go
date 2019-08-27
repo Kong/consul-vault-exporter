@@ -1,12 +1,13 @@
 package main
 
 import (
-	"consul-vault-exporter/handlers/healthcheck"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/kong/consul-vault-exporter/handlers/healthcheck"
 )
 
 func TestHealthCheck(t *testing.T) {
