@@ -1,25 +1,17 @@
-#################################################
-GOOS	:= $(shell go env GOOS)
-GOARCH	:= $(shell go env GOARCH)
-GOFILES	:= $(shell ls *.go |grep -v test)
-GOBUILD	:= GOOS=$(GOOS) GOARCH=$(GOARCH) go build
+.PHONY: all unit e2e bin tests
 
+bin:
+	go build -ldflags="-X main.version=$(shell git describe --always --long --dirty)"
 
-#################################################
-default:	deps test build
-docker:		deps test linuxbuild docker
+unit:
+	go test -race $(shell go list ./... | grep -v e2e)
 
-deps:
-	go get
+e2e:
+	go test -race $(shell go list ./... | grep e2e)
 
-build:
-	$(GOBUILD) $(GOFILES)
+vet:
+	go vet ./...
 
-linuxbuild:
-	GOOS=linux GOARCH=amd64 go build $(GOFILES)
+tests: vet unit e2e
 
-docker:
-	docker build -t maguec/consul-vault-exporter .
-
-test:
-	go test -v
+all: unit e2e bin

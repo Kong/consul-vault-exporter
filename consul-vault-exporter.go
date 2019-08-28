@@ -1,12 +1,13 @@
 package main
 
 import (
-	"consul-vault-exporter/handlers/healthcheck"
-	"consul-vault-exporter/handlers/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/shokunin/contrib/ginrus"
 	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/kong/consul-vault-exporter/handlers/healthcheck"
+	"github.com/kong/consul-vault-exporter/handlers/metrics"
 )
 
 func main() {
